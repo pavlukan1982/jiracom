@@ -1,7 +1,6 @@
 package com.epam.jiracom;
 
 import com.beust.jcommander.JCommander;
-import com.beust.jcommander.ParameterException;
 
 /**
  * Created by Andrei_Pauliukevich1 on 4/18/2016.
@@ -16,12 +15,12 @@ public class Main {
 
         try {
             jc.parse(args);
-        } catch (ParameterException e) {
+            jiraProp.execute();
+        } catch (Exception e) {
             System.out.println("Wrong parameters:\n" + e.getMessage());
         }
 
-        jiraProp.execute();
-
+        System.exit(0);
 
     }
 }

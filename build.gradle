@@ -11,6 +11,20 @@ repositories {
     maven { url "https://jitpack.io" }
 }
 
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Gradle Jar File Example',
+                'Implementation-Version': version,
+                'Main-Class': 'com.epam.jiracom.Main'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
 dependencies  {
     compile 'com.beust:jcommander:1.48'
+    compile 'com.atlassian.jira:jira-rest-java-client-api:3.0.0'
+    compile 'com.atlassian.jira:jira-rest-java-client-core:3.0.0'
+    compile 'org.slf4j:slf4j-log4j12:1.7.21'
 }
