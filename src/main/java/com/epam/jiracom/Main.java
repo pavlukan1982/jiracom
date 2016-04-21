@@ -6,9 +6,9 @@ import com.beust.jcommander.JCommander;
  * Created by Andrei_Pauliukevich1 on 4/18/2016.
  */
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
-        JiraProp jiraProp = new JiraProp();
+       JiraProp jiraProp = new JiraProp();
 
         JCommander jc = new JCommander(jiraProp);
         jc.setCaseSensitiveOptions(true);

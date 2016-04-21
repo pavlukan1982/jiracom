@@ -1,14 +1,11 @@
 package com.epam.jiracom;
 
-import com.atlassian.jira.rest.client.api.JiraRestClient;
-import com.atlassian.jira.rest.client.api.domain.User;
-import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory;
+
 import com.beust.jcommander.Parameter;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -55,11 +52,20 @@ public class JiraProp {
     private List<String> statusPriorities;
 
 
-    public void execute() throws URISyntaxException {
+    public void execute() throws IOException {
         doInitConfig();
-        JiraRestClient restClient = getJiraRestClient();
-        User user = restClient.getUserClient().getUser(userName).claim();
-        user.getName();
+        JiraRestClient restClient = new JiraRestClient(userName, password, host);
+        String[] jiraUsers = assignees.stream()
+                .map(s -> {
+                    String[] users = restClient.findUser(s);
+                    if (0 == users.length) {
+                        throw new RuntimeException("Unable to find Jira user for : " + s);
+                    }
+                    if (users.length > 1) {
+                        throw new RuntimeException("Found more than one Jira user for : " + s);
+                    }
+                    return users[0];})
+                .toArray(String[]::new);
     }
 
     private void doInitConfig() {
@@ -86,11 +92,6 @@ public class JiraProp {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private JiraRestClient getJiraRestClient() throws URISyntaxException {
-        AsynchronousJiraRestClientFactory jiraRestClientFactory = new AsynchronousJiraRestClientFactory();
-        return jiraRestClientFactory.createWithBasicHttpAuthentication(new URI(this.host), this.userName, this.password);
     }
 
 
