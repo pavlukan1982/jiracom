@@ -17,7 +17,8 @@ public class Main {
             jc.parse(args);
             jiraProp.execute();
         } catch (Exception e) {
-            System.out.println("Wrong parameters:\n" + e.getMessage());
+            System.out.println(e.getMessage());
+            System.exit(-1);
         }
 
         System.exit(0);

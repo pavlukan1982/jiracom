@@ -2,6 +2,7 @@ package com.epam.jiracom;
 
 
 import com.beust.jcommander.Parameter;
+import com.epam.jiracom.jira.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -55,9 +56,10 @@ public class JiraProp {
     public void execute() throws IOException {
         doInitConfig();
         JiraRestClient restClient = new JiraRestClient(userName, password, host);
-        String[] jiraUsers = assignees.stream()
+
+        User[] jiraUsers = assignees.stream()
                 .map(s -> {
-                    String[] users = restClient.findUser(s);
+                    User[] users = restClient.findUser(s);
                     if (0 == users.length) {
                         throw new RuntimeException("Unable to find Jira user for : " + s);
                     }
@@ -65,7 +67,55 @@ public class JiraProp {
                         throw new RuntimeException("Found more than one Jira user for : " + s);
                     }
                     return users[0];})
-                .toArray(String[]::new);
+                .toArray(User[]::new);
+
+        Project[] projects = this.projects.stream()
+                .map(s -> {
+                    Project project = restClient.getProject(s);
+                    if (null == project) {
+                        throw new RuntimeException("Unable find project : " + s);
+                    }
+                    return project;})
+                .toArray(Project[]::new);
+
+        Arrays.stream(projects)
+                .forEach(project -> {
+                    IssueType findIssueType = Arrays.stream(project.getIssueTypes())
+                            .filter(issueType -> this.type.equals(issueType.getKey()))
+                            .findFirst()
+                            .orElse(null);
+                    if (null == findIssueType) {
+                        throw new RuntimeException(String.format("Unable find %s in project %s", type, project.getKey()));
+                    }
+                });
+
+        if (null == this.priority) {
+            throw new RuntimeException("Priority isn't defined");
+        }
+        Priority priority = Arrays.stream(restClient.getPriorities())
+                .filter(p -> this.priority.equalsIgnoreCase(p.getName()))
+                .findFirst()
+                .orElse(null);
+        if (null == priority) {
+            throw new RuntimeException("Unable to find default priority");
+        }
+
+        if (0 == this.statusPriorities.size()) {
+            throw new RuntimeException("Status isn't defined");
+        }
+        Status[] statuses = restClient.getStatuses();
+        Status preferedStatus = statusPriorities.stream()
+                .map(s -> Arrays.stream(statuses)
+                        .filter(status -> s.equalsIgnoreCase(status.getName()))
+                        .findFirst()
+                        .orElse(null))
+                .filter(status -> null != status)
+                .findFirst()
+                .orElse(null);
+        if (null == preferedStatus) {
+            throw new RuntimeException("Unable to find default status");
+        }
+
     }
 
     private void doInitConfig() {
