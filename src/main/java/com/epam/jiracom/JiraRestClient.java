@@ -3,7 +3,10 @@ package com.epam.jiracom;
 import com.epam.jiracom.jira.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONWriter;
 
+import java.io.DataOutputStream;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.stream.StreamSupport;
@@ -15,11 +18,13 @@ public class JiraRestClient {
     private HttpClient httpClient;
     private String host;
 
-    public static final String JIRA_API = "/rest/api/2";
+    public static final String JIRA_API = "/rest/api/latest";
     public static final String USER_SEARCH = "/user/search";
     public static final String PROJECT_GET = "/project";
     public static final String PRIORITIES_GET = "/priority";
     public static final String STATUSES_GET = "/status";
+    public static final String ISSUE = "/issue";
+    public static final String ISSUE_STATUSES = "/issue/%s/transitions";
 
     public JiraRestClient(String user, String password, String host) {
         this.httpClient = new HttpClient(user, password);
@@ -30,17 +35,52 @@ public class JiraRestClient {
         String response;
         try {
             URL url = new URL(sUrl);
-            HttpURLConnection httpURLConnection = httpClient.get(url);
-            if (!((httpURLConnection.getResponseCode() >= 200) && (httpURLConnection.getResponseCode() < 300))) {
-                throw new RuntimeException(String.format("%d %s : %s",
-                        httpURLConnection.getResponseCode(),
-                        httpURLConnection.getResponseMessage(),
-                        url.getPath()));
-            }
-            response = HttpClient.getContent(httpURLConnection);
+            HttpURLConnection connection = httpClient.getConnection(url, "GET");
+            response = doRequest(connection);
         } catch (Exception e) {
             if (e instanceof RuntimeException) {
-               throw (RuntimeException) e;
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException(e);
+        }
+        return response;
+    }
+
+    private String doPost(String sUrl, String content) {
+        String response;
+        try {
+            URL url = new URL(sUrl);
+            HttpURLConnection connection = httpClient.getConnection(url, "POST");
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
+            wr.writeBytes(content);
+            wr.flush();
+            wr.close();
+            response = doRequest(connection);
+        } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException(e);
+        }
+        return response;
+    }
+
+    private String doRequest(HttpURLConnection connection) {
+        String response;
+        try {
+            int responseCode = connection.getResponseCode();
+            if (!((responseCode >= 200) && (responseCode < 300))) {
+                throw new RuntimeException(String.format("%d %s : %s",
+                        responseCode,
+                        connection.getResponseMessage(),
+                        connection.getURL().getPath()));
+            }
+            response = HttpClient.getContent(connection);
+        } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
             }
             throw new RuntimeException(e);
         }
@@ -69,7 +109,7 @@ public class JiraRestClient {
         JSONArray jsonArray = new JSONArray(doGet(host + JIRA_API + PRIORITIES_GET));
         return StreamSupport.stream(jsonArray.spliterator(), false)
                 .map(o -> (JSONObject) o)
-                .map(jsonObject -> new Priority(jsonObject.getInt("id"), jsonObject.getString("name")))
+                .map(jsonObject -> new Priority(jsonObject.getString("id"), jsonObject.getString("name")))
                 .toArray(Priority[]::new);
     }
 
@@ -81,5 +121,25 @@ public class JiraRestClient {
                 .toArray(Status[]::new);
     }
 
+    public Issue createIssue(String content) {
+        JSONObject jsonObject = new JSONObject(doPost(host + JIRA_API + ISSUE, content));
+        return new Issue(jsonObject.getInt("id"), jsonObject.getString("key"));
+    }
+
+    public Status[] getIssueStatuses(String issueId) {
+        JSONObject jsonTransitions = new JSONObject(doGet(
+                String.format(host + JIRA_API + ISSUE_STATUSES, issueId)));
+        return StreamSupport.stream(jsonTransitions.getJSONArray("transitions").spliterator(), false)
+                .map(o -> (JSONObject) o)
+                .map(jsonObject -> new Status(jsonObject.getInt("id"), jsonObject.getString("name")))
+                .toArray(Status[]::new);
+    }
+
+    public void changeIssueStatus(Issue issue, Status status) {
+        StringWriter writer = new StringWriter();
+        JSONWriter jsonWriter = new JSONWriter(writer).object().key("transition")
+                .object().key("id").value(status.getId()).endObject().endObject();
+        doPost(String.format(host + JIRA_API + ISSUE_STATUSES, issue.getId()), writer.toString());
+    }
 }
 

@@ -19,18 +19,18 @@ public class HttpClient {
         this.password = password;
     }
 
-    public HttpURLConnection get(URL url) throws IOException{
-        HttpURLConnection request = createRequest(url);
-        request.setRequestMethod("GET");
-        return request;
+    public HttpURLConnection getConnection(URL url, String method) throws IOException{
+        HttpURLConnection connection = createRequest(url);
+        connection.setRequestMethod(method);
+        return connection;
     }
 
     private HttpURLConnection createRequest(URL url) throws IOException{
-        HttpURLConnection request = (HttpURLConnection) url.openConnection();
-        request.setRequestProperty("Accept", "application/json");
-        request.setRequestProperty("Authorization",
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((this.user + ":" + this.password).getBytes()));
-        return request;
+        return connection;
     }
 
     public static String getContent(HttpURLConnection request) throws IOException{
