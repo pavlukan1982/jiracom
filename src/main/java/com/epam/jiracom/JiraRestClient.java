@@ -25,6 +25,8 @@ public class JiraRestClient {
     public static final String STATUSES_GET = "/status";
     public static final String ISSUE = "/issue";
     public static final String ISSUE_STATUSES = "/issue/%s/transitions";
+    public static final String ISSUE_LINK_TYPE = "/issueLinkType";
+    public static final String ISSUE_LINK = "/issueLink";
 
     public JiraRestClient(String user, String password, String host) {
         this.httpClient = new HttpClient(user, password);
@@ -140,6 +142,27 @@ public class JiraRestClient {
         JSONWriter jsonWriter = new JSONWriter(writer).object().key("transition")
                 .object().key("id").value(status.getId()).endObject().endObject();
         doPost(String.format(host + JIRA_API + ISSUE_STATUSES, issue.getId()), writer.toString());
+    }
+
+    public IssueLinkType[] getIssueLinkTypes() {
+        JSONObject jsonIssueTypes = new JSONObject(doGet(host + JIRA_API + ISSUE_LINK_TYPE));
+        return StreamSupport.stream(jsonIssueTypes.getJSONArray("issueLinkTypes").spliterator(), false)
+                .map(o -> (JSONObject) o)
+                .map(jsonObject -> new IssueLinkType(jsonObject.getInt("id"),
+                        jsonObject.getString("name"),
+                        jsonObject.getString("inward"),
+                        jsonObject.getString("outward")))
+                .toArray(IssueLinkType[]::new);
+    }
+
+    public void createIssueLink(Issue inwardIssue, Issue outwardIssue, IssueLinkType linkType) {
+        StringWriter writer = new StringWriter();
+        JSONWriter jsonWriter = new JSONWriter(writer).object()
+                .key("type").object().key("name").value(linkType.getName()).endObject()
+                .key("inwardIssue").object().key("key").value(inwardIssue.getKey()).endObject()
+                .key("outwardIssue").object().key("key").value(outwardIssue.getKey()).endObject()
+                .endObject();
+        doPost(host + JIRA_API + ISSUE_LINK, writer.toString());
     }
 }
 

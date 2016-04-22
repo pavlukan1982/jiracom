@@ -42,6 +42,9 @@ public class JiraProp {
     @Parameter(names = "-priority", description = "Priority of Jira issue")
     private String priority;
 
+    @Parameter(names = "--issueLink", description = "Type of link between issues")
+    private String issueLink;
+
     @Parameter(names = "-description", description = "Desription of Jira issue")
     private String description;
 
@@ -124,6 +127,18 @@ public class JiraProp {
             throw new RuntimeException("Unable to find default status");
         }
 
+        IssueLinkType[] issueLinkTypes = Arrays.stream(restClient.getIssueLinkTypes())
+                .filter(issueLinkType -> issueLink.equalsIgnoreCase(issueLinkType.getInward())
+                        || issueLink.equalsIgnoreCase(issueLinkType.getOutward()))
+                .toArray(IssueLinkType[]::new);
+        if (0 == issueLinkTypes.length) {
+            throw new RuntimeException("Unable to find defined type of issue link");
+        }
+        if (1 < issueLinkTypes.length) {
+            throw new RuntimeException("Find more than one type of issue link");
+        }
+        IssueLinkType issueLinkType = issueLinkTypes[0];
+
         // crete issues
         List<Issue> issues = new ArrayList<>(jiraProjects.length);
         for (int i = 0; i < jiraProjects.length; i++) {
@@ -142,10 +157,19 @@ public class JiraProp {
             issues.add(restClient.createIssue(s));
         }
 
+        // change status of issues
         issues.stream().forEach(issue -> {
             Status preferedStatus = getPreferedStatus(restClient.getIssueStatuses(issue.getKey()));
             restClient.changeIssueStatus(issue, preferedStatus);
         });
+
+        // create link between issues
+        for (int i = 0; i < issues.size(); i++) {
+            for (int j = i + 1; j < issues.size(); j++) {
+                restClient.createIssueLink(issues.get(i), issues.get(j), issueLinkType);
+            }
+
+        }
 
     }
 
@@ -179,6 +203,8 @@ public class JiraProp {
                                         params.add(matcher.group(1).replace("\"", ""));
                                     }
                                     value = params;
+                                } else {
+                                    value = ((String) value).replace("\"", "");
                                 }
                                 field.set(this, value);
                             }
