@@ -5,6 +5,8 @@ apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'application'
 
+mainClassName = "com.epam.jiracom.Main"
+
 repositories {
     mavenCentral()
     maven { url "https://m2proxy.atlassian.com/repository/public" }
@@ -14,16 +16,5 @@ repositories {
 dependencies  {
     compile 'com.beust:jcommander:1.48'
     compile 'org.json:json:20160212'
-}
-
-task fatJar(type: Jar) {
-    manifest {
-        attributes 'Implementation-Title': 'Gradle Jar File Example',
-                'Implementation-Version': version,
-                'Main-Class': 'com.epam.jiracom.Main'
-    }
-    baseName = project.name + '-all'
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
 }
 
