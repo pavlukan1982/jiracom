@@ -15,6 +15,10 @@ public class Main {
 
         try {
             jc.parse(args);
+            if (jiraProp.isHelp()) {
+                jc.usage();
+                System.exit(0);
+            }
             jiraProp.execute();
         } catch (Exception e) {
             System.out.println(e.getMessage());
