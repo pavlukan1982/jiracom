@@ -59,15 +59,15 @@ public class JiraProp {
     private List<String> statusPriorities;
 
     @Parameter(names = "-export", description = "Export default properties to file", help = true)
-    private String export;
+    private boolean export;
 
     private static Pattern pattern = Pattern.compile("([^\"]\\S*|\".+?\")\\s*");
 
 
     public void execute() throws IOException {
 
-        if (!export.isEmpty()) {
-            File file = new File(export);
+        if (this.export) {
+            File file = new File(this.path);
             if (file.exists()) {
                 throw new RuntimeException("Such file exists");
             }
