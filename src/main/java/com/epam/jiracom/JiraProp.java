@@ -43,7 +43,7 @@ public class JiraProp {
     @Parameter(names = "-issueLink", description = "Type of link between issues")
     private String issueLink;
 
-    @Parameter(names = "-description", description = "Desription of Jira issue", required = true)
+    @Parameter(names = "-description", description = "Desription of Jira issue")
     private String description;
 
     @Parameter(names = "-summary", description = "Summary for Jira issue", required = true)
@@ -128,15 +128,15 @@ public class JiraProp {
                 })
                 .toArray(IssueType[]::new);
 
-        if (null == this.priority) {
-            throw new RuntimeException("Priority isn't defined");
-        }
-        Priority jiraPriority = Arrays.stream(restClient.getPriorities())
-                .filter(p -> this.priority.equalsIgnoreCase(p.getName()))
-                .findFirst()
-                .orElse(null);
-        if (null == jiraPriority) {
-            throw new RuntimeException("Unable to find default priority");
+        Priority jiraPriority = null;
+        if (null != this.priority) {
+            jiraPriority = Arrays.stream(restClient.getPriorities())
+                    .filter(p -> this.priority.equalsIgnoreCase(p.getName()))
+                    .findFirst()
+                    .orElse(null);
+            if (null == jiraPriority) {
+                throw new RuntimeException("Unable to find default priority");
+            }
         }
 
         if (0 == this.statusPriorities.size()) {
@@ -167,10 +167,12 @@ public class JiraProp {
                     .key("project").object().key("id").value(jiraProjects[i].getId()).endObject()
                     .key("issuetype").object().key("id").value(issueTypes[i].getName()).endObject()
                     .key("assignee").object().key("name").value(jiraUsers[i].getName()).endObject()
-                    .key("priority").object().key("id").value(jiraPriority.getId()).endObject()
                     .key("summary").value(this.summary)
-                    .key("description").value(this.description)
-                    .endObject().endObject();
+                    .key("description").value(this.description);
+            if (null != jiraPriority) {
+                jsonWriter.key("priority").object().key("id").value(jiraPriority.getId()).endObject();
+            }
+            jsonWriter.endObject().endObject();
             String s = writer.toString();
             issues.add(restClient.createIssue(s));
         }

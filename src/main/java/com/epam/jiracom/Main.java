@@ -22,9 +22,11 @@ public class Main {
             jiraProp.execute();
         } catch (Exception e) {
             System.out.println(e.getMessage());
+            System.out.println("Fail");
             System.exit(-1);
         }
 
+        System.out.println("Success");
         System.exit(0);
 
     }
