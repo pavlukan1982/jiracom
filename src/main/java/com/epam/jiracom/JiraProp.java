@@ -61,6 +61,9 @@ public class JiraProp {
     @Parameter(names = "-export", description = "Export default properties to file", help = true)
     private boolean export;
 
+    @Parameter(names = "-sprint", description = "Sprint name or state for issues")
+    private String sprint;
+
     private static Pattern pattern = Pattern.compile("([^\"]\\S*|\".+?\")\\s*");
 
 
@@ -156,7 +159,32 @@ public class JiraProp {
         if (1 < issueLinkTypes.length) {
             throw new RuntimeException("Find more than one type of issue link");
         }
-        IssueLinkType issueLinkType = issueLinkTypes[0];
+        IssueLinkType issueLinkTypeJira = issueLinkTypes[0];
+
+        // find sprint for project
+        Sprint[] jiraSprints = null;
+        if (null != this.sprint) {
+            jiraSprints = Arrays.stream(jiraProjects)
+                    .map(project -> {
+                        Sprint[] sprints = Arrays.stream(restClient.getBoards(project))
+                                .flatMap(board -> Arrays.stream(restClient.getSprints(board)))
+                                .filter(sprint -> this.sprint.equalsIgnoreCase(sprint.getName()) ||
+                                        this.sprint.equalsIgnoreCase(sprint.getState()))
+                                .toArray(Sprint[]::new);
+                        if (0 == sprints.length) {
+                            throw new RuntimeException(String.format("Unable to find sprint for %s project",
+                                    project.getId()));
+                        }
+                        if (1 < sprints.length) {
+                            throw new RuntimeException(String.format("Find %d sprints for %s project",
+                                    sprints.length,
+                                    project.getId()));
+                        }
+                        return sprints;})
+                    .map(sprints -> sprints[0])
+                    .toArray(Sprint[]::new);
+        }
+
 
         // crete issues
         List<Issue> issues = new ArrayList<>(jiraProjects.length);
@@ -173,8 +201,7 @@ public class JiraProp {
                 jsonWriter.key("priority").object().key("id").value(jiraPriority.getId()).endObject();
             }
             jsonWriter.endObject().endObject();
-            String s = writer.toString();
-            issues.add(restClient.createIssue(s));
+            issues.add(restClient.createIssue(writer.toString()));
         }
 
         // change status of issues
@@ -186,9 +213,15 @@ public class JiraProp {
         // create link between issues
         for (int i = 0; i < issues.size(); i++) {
             for (int j = i + 1; j < issues.size(); j++) {
-                restClient.createIssueLink(issues.get(i), issues.get(j), issueLinkType);
+                restClient.createIssueLink(issues.get(i), issues.get(j), issueLinkTypeJira);
             }
         }
+
+        // add issues to sprints
+        for (int i = 0; i < issues.size(); i++) {
+            restClient.addIssueToSprint(jiraSprints[i], issues.get(i));
+        }
+
     }
 
     private Status getPreferedStatus(Status[] jiraStatuses) {

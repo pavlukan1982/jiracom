@@ -28,6 +28,11 @@ public class JiraRestClient {
     public static final String ISSUE_LINK_TYPE = "/issueLinkType";
     public static final String ISSUE_LINK = "/issueLink";
 
+    public static final String AGILE_API = "/rest/agile/latest";
+    public static final String BOARD_GET = "/board";
+    public static final String SPRINTS_GET = "/board/%s/sprint";
+    public static final String SPRINT_ISSUE_ADD = "/sprint/%s/issue";
+
     public JiraRestClient(String user, String password, String host) {
         this.httpClient = new HttpClient(user, password);
         this.host = host;
@@ -163,6 +168,30 @@ public class JiraRestClient {
                 .key("outwardIssue").object().key("key").value(outwardIssue.getKey()).endObject()
                 .endObject();
         doPost(host + JIRA_API + ISSUE_LINK, writer.toString());
+    }
+
+    public Board[] getBoards(Project project) {
+        JSONObject jsonObject = new JSONObject(doGet(host + AGILE_API + BOARD_GET + "?projectKeyOrId=" + project.getId()));
+        return StreamSupport.stream(jsonObject.getJSONArray("values").spliterator(), false)
+                .map(o -> (JSONObject) o)
+                .map(jsonBoard -> new Board(jsonBoard.getInt("id"), jsonBoard.getString("name")))
+                .toArray(Board[]::new);
+    }
+
+    public Sprint[] getSprints(Board board) {
+        JSONObject jsonObject = new JSONObject(doGet(String.format(host + AGILE_API + SPRINTS_GET, Integer.toString(board.getId()))));
+        return StreamSupport.stream(jsonObject.getJSONArray("values").spliterator(), false)
+                .map(o -> (JSONObject) o)
+                .map(jsonSprint -> new Sprint(jsonSprint.getInt("id"), jsonSprint.getString("name"), jsonSprint.getString("state")))
+                .toArray(Sprint[]::new);
+    }
+
+    public void addIssueToSprint(Sprint sprint, Issue issue) {
+        StringWriter writer = new StringWriter();
+        JSONWriter jsonWriter = new JSONWriter(writer).object()
+                .key("issues").array().value(issue.getId()).endArray()
+                .endObject();
+        doPost(String.format(host + AGILE_API + SPRINT_ISSUE_ADD, sprint.getId()), writer.toString());
     }
 }
 
