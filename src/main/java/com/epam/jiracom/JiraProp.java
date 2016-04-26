@@ -149,17 +149,20 @@ public class JiraProp {
             throw new RuntimeException("Unable to find default status");
         }
 
-        IssueLinkType[] issueLinkTypes = Arrays.stream(restClient.getIssueLinkTypes())
-                .filter(issueLinkType -> issueLink.equalsIgnoreCase(issueLinkType.getInward())
-                        || issueLink.equalsIgnoreCase(issueLinkType.getOutward()))
-                .toArray(IssueLinkType[]::new);
-        if (0 == issueLinkTypes.length) {
-            throw new RuntimeException("Unable to find defined type of issue link");
+        IssueLinkType issueLinkTypeJira = null;
+        if (null != this.issueLink) {
+            IssueLinkType[] issueLinkTypes = Arrays.stream(restClient.getIssueLinkTypes())
+                    .filter(issueLinkType -> issueLink.equalsIgnoreCase(issueLinkType.getInward())
+                            || issueLink.equalsIgnoreCase(issueLinkType.getOutward()))
+                    .toArray(IssueLinkType[]::new);
+            if (0 == issueLinkTypes.length) {
+                throw new RuntimeException("Unable to find defined type of issue link");
+            }
+            if (1 < issueLinkTypes.length) {
+                throw new RuntimeException("Find more than one type of issue link");
+            }
+            issueLinkTypeJira = issueLinkTypes[0];
         }
-        if (1 < issueLinkTypes.length) {
-            throw new RuntimeException("Find more than one type of issue link");
-        }
-        IssueLinkType issueLinkTypeJira = issueLinkTypes[0];
 
         // find sprint for project
         Sprint[] jiraSprints = null;
@@ -195,8 +198,10 @@ public class JiraProp {
                     .key("project").object().key("id").value(jiraProjects[i].getId()).endObject()
                     .key("issuetype").object().key("id").value(issueTypes[i].getName()).endObject()
                     .key("assignee").object().key("name").value(jiraUsers[i].getName()).endObject()
-                    .key("summary").value(this.summary)
-                    .key("description").value(this.description);
+                    .key("summary").value(this.summary);
+            if (null != this.description) {
+                jsonWriter.key("description").value(this.description);
+            }
             if (null != jiraPriority) {
                 jsonWriter.key("priority").object().key("id").value(jiraPriority.getId()).endObject();
             }
@@ -211,9 +216,11 @@ public class JiraProp {
         });
 
         // create link between issues
-        for (int i = 0; i < issues.size(); i++) {
-            for (int j = i + 1; j < issues.size(); j++) {
-                restClient.createIssueLink(issues.get(i), issues.get(j), issueLinkTypeJira);
+        if (null != this.issueLink) {
+            for (int i = 0; i < issues.size(); i++) {
+                for (int j = i + 1; j < issues.size(); j++) {
+                    restClient.createIssueLink(issues.get(i), issues.get(j), issueLinkTypeJira);
+                }
             }
         }
 
