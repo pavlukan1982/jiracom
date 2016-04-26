@@ -218,8 +218,10 @@ public class JiraProp {
         }
 
         // add issues to sprints
-        for (int i = 0; i < issues.size(); i++) {
-            restClient.addIssueToSprint(jiraSprints[i], issues.get(i));
+        if (null != this.sprint) {
+            for (int i = 0; i < issues.size(); i++) {
+                restClient.addIssueToSprint(jiraSprints[i], issues.get(i));
+            }
         }
 
     }
